@@ -130,21 +130,28 @@ public class VavrExamples {
 
     @Test//Option
     public void example7() {
+
         //Option in vavr supports peek which allows us to perform an action of there's something
         Option<String> o1 = Option.of("something");
         o1.peek(System.out::println);
 
+        //Option is serializable Optional is not
+
         //Also Option is interoperable with java 8 optional
         Option<String> o2 = Option.ofOptional(Optional.of("something"));
 
-        //Option can either be an instance of None or Some but in occasions it can result in Some(null)
-        //If we encounter such situation we could fix it by flatMap
-
+        //In vavr a call to Option.map() can result in Some(null) this could lead to a NullPointerException.
+        //Some people don't like this but it actually forces you to pay attention to possible occurrences of
+        // null and deal with them accordingly instead of unknowingly accepting them. The correct way to deal with
+        // occurrences of null is to use flatMap
         Option<String> o3 = o1.map(s -> (String)null);
         o3.flatMap(o -> Option.of(o));
-        //Some people don't like Option and prefer Optional because the ofNullable() method. vavr actually allows
-        //Option to hold null and potentially introducing the risk of a NullPointerException but this way makes the developer
-        //aware that should not be passing a null value around.
+
+        /*
+        Option is a wrapper of values, if used correctly, we can avoid null checks and also NullPointerException
+        Please have a look at OptionalExamples.java
+        */
+
     }
 
     @Test//Try
@@ -211,6 +218,12 @@ public class VavrExamples {
 
         //We can convert to Java 8 collections using asJava()
         java.util.List<Integer> javaIntegers = i1.asJava();
+
+        //Collections are immutable in vavr. Notice that there is no add method in list
+        //instead there are append and prepend.
+        i1.append(9);
+        i1.prepend(3);
+
 
     }
 
