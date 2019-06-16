@@ -12,6 +12,7 @@ import io.vavr.Lazy;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.collection.List;
+import io.vavr.collection.Set;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 import org.junit.Test;
@@ -29,7 +30,8 @@ public class VavrExamples {
         Function1<Integer, Integer> foo = (x) -> x + x;
         System.out.println(foo.apply(2));
 
-        Function8<Integer, Integer, Integer, Integer, Integer, Integer, Integer, Integer, Integer> bar = (x1 ,x2, x3, x4 ,x5, x6 ,x7, x8) -> x1 + x2 + x3 + x4 + x5+ x6 + x7+ x8;
+        Function8<Integer, Integer, Integer, Integer, Integer, Integer, Integer, Integer, Integer> bar = (x1 ,x2, x3, x4 ,x5, x6 ,x7, x8) ->
+                x1 + x2 + x3 + x4 + x5+ x6 + x7+ x8;
         System.out.println(bar.apply(1,1,1,1,1,1,1,1));
 
     }
@@ -174,6 +176,10 @@ public class VavrExamples {
                 .recoverWith(IllegalArgumentException.class, Try.of(() -> 777))
                 .getOrElse(-1);
         System.out.println(recovered);
+
+        //Combining Try.sequence and flatmap we can extract the values from a list of Try
+        List<Try<String>> tries = List(Try.of(() -> "A"),Try.of(() -> "B"),Try.of(() -> "C"));
+        Try<String> strings = Try.sequence(tries).flatMap((e) -> e.toTry());
     }
 
     private Integer multipleExceptions() throws IllegalArgumentException, ArrayIndexOutOfBoundsException {
@@ -221,7 +227,7 @@ public class VavrExamples {
 
         //Collections are immutable in vavr. Notice that there is no add method in list
         //instead there are append and prepend.
-        i1.append(9);
+        List<Integer> i4 = i1.append(9);
         i1.prepend(3);
 
 
