@@ -1,9 +1,11 @@
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Optional;
+import static io.vavr.API.$;
+import static io.vavr.API.Case;
+import static io.vavr.API.List;
+import static io.vavr.API.Match;
+import static io.vavr.Predicates.instanceOf;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import io.vavr.API;
-import io.vavr.Function0;
 import io.vavr.Function1;
 import io.vavr.Function2;
 import io.vavr.Function3;
@@ -12,13 +14,14 @@ import io.vavr.Lazy;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.collection.List;
-import io.vavr.collection.Set;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import org.junit.Test;
-
-import static io.vavr.API.*;
-import static io.vavr.Predicates.instanceOf;
 
 public class VavrExamples {
 
@@ -28,12 +31,11 @@ public class VavrExamples {
 
         //Java 8 supports Function and ByFunction but VavrSupports FunctionN types that allows to have up to 8 params
         Function1<Integer, Integer> foo = (x) -> x + x;
-        System.out.println(foo.apply(2));
+        assertThat(foo.apply(2)).isEqualTo(4);
 
         Function8<Integer, Integer, Integer, Integer, Integer, Integer, Integer, Integer, Integer> bar = (x1 ,x2, x3, x4 ,x5, x6 ,x7, x8) ->
-                x1 + x2 + x3 + x4 + x5+ x6 + x7+ x8;
-        System.out.println(bar.apply(1,1,1,1,1,1,1,1));
-
+            x1 + x2 + x3 + x4 + x5+ x6 + x7+ x8;
+        assertThat(bar.apply(1, 1, 1, 1, 1, 1, 1, 1)).isEqualTo(8);
     }
 
     @Test//Composed functions
@@ -45,8 +47,7 @@ public class VavrExamples {
         Function1<String, String> withEmphasis = (s) -> s + "!!!!!";
 
         Function1<String, String> bigGreeting = greeting.compose(toUpperCase.compose(withEmphasis));
-        System.out.println(bigGreeting.apply("djordje"));
-
+        assertThat(bigGreeting.apply("djordje")).isEqualTo("Hey DJORDJE!!!!!!");
     }
 
     @Test//Lifting
@@ -62,7 +63,7 @@ public class VavrExamples {
                 if(s.isEmpty()) {
                     throw new IllegalArgumentException("Cannot be empty");
                 }
-            return s + "!!!!!";
+                return s + "!!!!!";
             }
         };
         Function1<String, String> bigGreeting = greeting.compose(toUpperCase.compose(withEmphasis));
@@ -70,8 +71,7 @@ public class VavrExamples {
         //System.out.println(bigGreeting.apply(""));// Will throw the exception
 
         Function1<String, Option<String>> liftedGreeting = Function1.lift(bigGreeting);
-        System.out.println(liftedGreeting.apply(""));
-
+        assertThat(liftedGreeting.apply("")).isEqualTo(Option.none());
     }
 
     @Test//Partial application
@@ -84,9 +84,8 @@ public class VavrExamples {
         Function1<String, String> spanishGreet = greet.apply("Hola");
         Function1<String, String> frenchGreet = greet.apply("Salut");
 
-        System.out.println(spanishGreet.apply("Cecilia"));
-        System.out.println(frenchGreet.apply("Cecile"));
-
+        assertThat(spanishGreet.apply("Cecilia")).isEqualTo("Hola Cecilia!");
+        assertThat(frenchGreet.apply("Cecile")).isEqualTo("Salut Cecile!");
     }
 
     @Test//Currying
@@ -99,7 +98,7 @@ public class VavrExamples {
         Function1<Integer, Integer> part2 = part1.curried().apply(3);
         Integer part3 = part2.curried().apply(1);
 
-        System.out.println(part3);
+        assertThat(part3).isEqualTo(6);
     }
 
     @Test//Memoization/Idempotency
@@ -112,18 +111,20 @@ public class VavrExamples {
 
         long startFirstExecution = System.currentTimeMillis();
         System.out.print(foo.apply(2));
-        long endFirstExecution = System.currentTimeMillis();
-        System.out.println(" in " + (endFirstExecution - startFirstExecution) + "ms");
+        long timeElapsed = System.currentTimeMillis() - startFirstExecution;
+        System.out.println(" in " + timeElapsed + "ms");
+        assertThat(timeElapsed).isGreaterThanOrEqualTo(1000);
 
         long startSecondExecution = System.currentTimeMillis();
         System.out.print(foo.apply(2));
-        long endSecondExecution = System.currentTimeMillis();
-        System.out.println(" in " + (endSecondExecution - startSecondExecution) + "ms");
+        long secondTimeElapsed = System.currentTimeMillis() - startSecondExecution;
+        System.out.println(" in " + secondTimeElapsed + "ms");
+        assertThat(secondTimeElapsed).isLessThan(1000);
     }
 
     private String aVeryExpensiveMethod(Integer number) {
         try {
-            Thread.sleep(5000);
+            Thread.sleep(1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -161,25 +162,26 @@ public class VavrExamples {
         //Try is an alternative way of exception handling which is much flexible than classic exception handling in Java
         Function1<Integer, Integer> something = (x) -> x * 2;
         Integer success = Try.of(() -> something.apply(2))
-                .getOrElse(-1);
-        System.out.println(success);
+            .getOrElse(-1);
+        assertThat(success).isEqualTo(4);
 
         //We can graciously provide alternative execution paths in case of errors
         Function1<Integer, Integer> somethingBad = (x) -> {throw new RuntimeException();};
         Integer failure = Try.of(() -> somethingBad.apply(2)).getOrElse(-1);
-        System.out.println(failure);
+        assertThat(failure).isEqualTo(-1);
 
         //If a method that we called return multiple exceptiond but we just want to react to one of them
         //we also can by using the recoverWith
         Function1<Integer, Integer> manyBadThings = (x) -> multipleExceptions();
         Integer recovered = Try.of(() -> manyBadThings.apply(2))
-                .recoverWith(IllegalArgumentException.class, Try.of(() -> 777))
-                .getOrElse(-1);
-        System.out.println(recovered);
+            .recoverWith(IllegalArgumentException.class, Try.of(() -> 777))
+            .getOrElse(-1);
+        assertThat(recovered).isEqualTo(777);
 
         //Combining Try.sequence and flatmap we can extract the values from a list of Try
         List<Try<String>> tries = List(Try.of(() -> "A"),Try.of(() -> "B"),Try.of(() -> "C"));
         Try<String> strings = Try.sequence(tries).flatMap((e) -> e.toTry());
+        assertThat(strings.collect(Collectors.joining(","))).isEqualTo("A");
     }
 
     private Integer multipleExceptions() throws IllegalArgumentException, ArrayIndexOutOfBoundsException {
@@ -189,38 +191,43 @@ public class VavrExamples {
     @Test//Lazy initialized values
     public void example9() {
 
+        AtomicInteger callCounter = new AtomicInteger(0);
+
         Lazy<Integer> lazyValue = Lazy.of(() -> {
-            System.out.println("too lazy too print many times");
+            callCounter.incrementAndGet();
             return 123;
         });
         //regardless we are calling it multiple times, it is only computing once
-        lazyValue.get();
-        lazyValue.get();
-        lazyValue.get();
+        assertThat(lazyValue.get()).isEqualTo(123);
+        assertThat(lazyValue.get()).isEqualTo(123);
+        assertThat(lazyValue.get()).isEqualTo(123);
+
+        assertThat(callCounter.get()).isEqualTo(1);
     }
 
     @Test//Collections
     public void example10() {
 
         //Collections can be initialized in multiple ways
-        List<Integer> i1 = List.of(1, 2, 3);
+        List<Integer> i1 = List.of(1, 2, 3, 4, 5);
         List<Integer> i2 = API.List(1, 2, 3, 4);//Looks nice when statically imported
 
         //Drop will drop from left to right the amount of elements you want
         List<Integer> droppedValue = i1.drop(2);
-        System.out.println(droppedValue);
+        assertThat(droppedValue).containsExactly(3, 4, 5);
 
         //take allows us to take the first x elements
         List<Integer> takenValues = i1.take(2);
-        System.out.println(takenValues);
+        assertThat(takenValues).containsExactly(1, 2);
 
         //Tail will return everything but the first element
         List<Integer> tail = i2.tail();
-        System.out.println(tail);
+        assertThat(tail).containsExactly(2, 3, 4);
 
         //zipWithIndex creates indexes for the values in the collection
         List<String> i3 = List.of("A", "B", "C");
-        System.out.println(i3.zipWithIndex());
+        List<Tuple2<String, Integer>> index = i3.zipWithIndex();
+        System.out.println(index);
 
         //We can convert to Java 8 collections using asJava()
         java.util.List<Integer> javaIntegers = i1.asJava();
@@ -228,9 +235,16 @@ public class VavrExamples {
         //Collections are immutable in vavr. Notice that there is no add method in list
         //instead there are append and prepend.
         List<Integer> i4 = i1.append(9);
-        i1.prepend(3);
+        assertThat(i4)
+            .isNotEqualTo(i1)
+            .hasSize(i1.size()+1)
+            .containsExactly(1,2,3,4,5,9);
 
-
+        List<Integer> prepend = i1.prepend(3);
+        assertThat(prepend)
+            .isNotEqualTo(i1)
+            .hasSize(i1.size()+1)
+            .containsExactly(3,1,2,3,4,5);
     }
 
     @Test//Tuples
@@ -245,10 +259,10 @@ public class VavrExamples {
         Tuple.of("A", 2, true, 0.1D, new Object(), 'x', 111L);
         Tuple.of("A", 2, true, 0.1D, new Object(), 'x', 111L, 2.78F);//Max tupple is of 8 elements
 
-        //The values of Tuples are acessed using the values _1, _2, etc... Maybe not the nicest :(
+        //The values of Tuples are accessed using the values _1, _2, etc... Maybe not the nicest :(
         Tuple2<String, String> person = Tuple.of("Djordje", "Programmer");
-        System.out.println(person._1);
-        System.out.println(person._2);
+        assertThat(person._1).isEqualTo("Djordje");
+        assertThat(person._2).isEqualTo("Programmer");
     }
 
 
@@ -269,6 +283,7 @@ public class VavrExamples {
         //In vavr we can prevent the checked exception like this
         List<URI> uris = urls.map(u -> API.unchecked(() -> new URI(u)).apply());
         System.out.println(uris);
+        assertThat(uris).hasSize(3);
 
     }
 
@@ -278,10 +293,9 @@ public class VavrExamples {
         Object a = 23;
 
         String value = Match(a).of(
-                Case($(instanceOf(String.class)), "it's a word"),
-                Case($(instanceOf(Integer.class)), "it's a number"));
+            Case($(instanceOf(String.class)), "it's a word"),
+            Case($(instanceOf(Integer.class)), "it's a number"));
 
-        System.out.println(value);
-
+        assertThat(value).isEqualTo("it's a number");
     }
 }
